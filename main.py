@@ -4,12 +4,62 @@ from kivymd.uix.screenmanager import MDScreenManager
 from kivymd.uix.screen import MDScreen
 from kivy import platform
 from kivy.core.window import Window
+from kivy.uix.image import Image
+from kivymd.uix.widget import MDWidget
 
 FPS = 60
 BULLET_SPEED = dp(10)
 SHIP_SPEED = dp(10)
+DIR_UP = 1
+DIR_DOWN = -1
+
+class Shot(MDWidget):
+    def __init__(self,direction, **kwargs):
+        super().__init__(**kwargs)
+        self.direction = direction
 class MainScreen(MDScreen):
     ...
+
+
+
+class Ship(Image):
+    def __init__(self, direction=DIR_UP, **kwargs):
+        super().__init__(**kwargs)
+        self.direction = direction
+
+    def moveLeft(self):  # todo
+        self.pos[0] -= SHIP_SPEED
+
+    def moveRight(self):  # todo
+        self.pos[0] += SHIP_SPEED
+
+    def shot(self):  # todo
+        shot = Shot(self.direction)
+        shot.center_x = self.center_x
+        shot.center_y = self.top
+        self.parent.parent.parent.parent.bulletsappend(shot)
+        self.parrent.add_widget(shot)
+    def update(self):
+        ...
+
+class PlayerShip(Ship):
+    def __init__(self, direction=DIR_UP, **kwargs):
+        super().__init__(**kwargs)
+
+    def update(self, keys):
+        for key in keys:
+            if key[key] == True:
+                if key == "left" and self.center_x > 0:
+                    self.moveLeft
+                if key == "left" and self.center_x > 0:
+                    self.moveRight()
+                if key == "shot":
+                    self.shot()
+
+class EnemyShip(Ship):
+    def __init__(self, direction=DIR_UP, **kwargs):
+        super().__init__(direction=DIR_DOWN, **kwargs)
+        self.frame = 0
 
 
 class GameScreen(MDScreen):
@@ -17,11 +67,12 @@ class GameScreen(MDScreen):
         super().__init__(*args, **kwargs)
 
         self.eventkeys = {}
-        self.cartidge = []
+        self.bullets = []
+
+        self.ship = self.ids.ship
 
     def update(self): #todo корабль управлять
-        ...
-
+        self.ship.update(self.eventkeys)
     def pressKey(self, key):   #todo
         pass
 
