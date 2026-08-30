@@ -1,3 +1,6 @@
+from random import randint
+
+from kivy.clock import Clock
 from kivy.metrics import dp
 from kivymd.app import MDApp
 from kivymd.uix.screenmanager import MDScreenManager
@@ -28,10 +31,10 @@ class Ship(Image):
         self.direction = direction
 
     def moveLeft(self):  # todo
-        self.pos[0] -= SHIP_SPEED
+        self.pos[0] += SHIP_SPEED
 
     def moveRight(self):  # todo
-        self.pos[0] += SHIP_SPEED
+        self.pos[0] -= SHIP_SPEED
 
     def shot(self):  # todo
         shot = Shot(self.direction)
@@ -48,13 +51,14 @@ class PlayerShip(Ship):
 
     def update(self, keys):
         for key in keys:
-            if key[key] == True:
+            if keys[key] == True:
                 if key == "left" and self.center_x > 0:
-                    self.moveLeft
-                if key == "left" and self.center_x > 0:
+                    self.moveLeft()
+                if key == "right" and self.center_x > 0:
                     self.moveRight()
                 if key == "shot":
                     self.shot()
+                    keys[key] = False
 
 class EnemyShip(Ship):
     def __init__(self, direction=DIR_UP, **kwargs):
@@ -68,25 +72,42 @@ class GameScreen(MDScreen):
 
         self.eventkeys = {}
         self.bullets = []
-
+        self.enemyShips = []
         self.ship = self.ids.ship
 
-    def update(self): #todo корабль управлять
+        #Window.bind(on_key_down=)
+        #Window.bind(on_key_up=)
+
+    def on_enter(self,*args):
+        self.updateEvent = Clock.schedule_interval(self.update, 1 / FPS)
+
+        ship = EnemyShip()
+        ship.pos = (randint(0,int(Window.size[0] - ship.size[0]))), Window.size[1]
+        self.enemyShips.append(ship)
+        self.ids.front.add_widget(ship)
+
+        return super().on_enter(*args)
+
+
+    def update(self,dt): #todo корабль управлять
         self.ship.update(self.eventkeys)
+
+        #todo logic enemy
     def pressKey(self, key):   #todo
-        pass
+        self.eventkeys[key] = True
 
     def releaseKey(self, key):  # todo
+        self.eventkeys[key] = False
+
+
+    def moveLeft(self):
         pass
 
 
-    def moveLeft(self):  # todo
-        pass
 
-
-    def moveRight(self):  # todo
+    def moveRight(self):
         pass
-    def shot(self):  # todo
+    def shot(self):
         pass
 
 class ShooterApp(MDApp):
