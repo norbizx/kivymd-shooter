@@ -147,6 +147,41 @@
                     on_press: root.pressKey('shot')
                     on_release: root.releaseKey('shot')
 
+        # ОВЕРЛЕЙ ПАУЗЫ
+                # ОВЕРЛЕЙ ПАУЗЫ
+        MDFloatLayout:
+            id: pause_overlay
+            size_hint: 1, 1
+            pos_hint: {'x': 0, 'y': 0} if root.paused else {'x': 10, 'y': 10}
+            opacity: 1 if root.paused else 0
+
+            canvas.before:
+                Color:
+                    rgba: 0, 0, 0, 0.7
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            MDBoxLayout:
+                orientation: 'vertical'
+                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                size_hint: 0.7, 0.4
+                spacing: dp(20)
+
+                MDLabel:
+                    text: "ПАУЗА"
+                    halign: 'center'
+                    font_style: 'H4'
+
+                MDRectangleFlatButton:
+                    text: "Продолжить"
+                    pos_hint: {'center_x': 0.5}
+                    on_press: root.resumeGame()
+
+                MDRectangleFlatButton:
+                    text: "В меню"
+                    pos_hint: {'center_x': 0.5}
+                    on_press: root.exitToMenu()
 <Shot>:
     size_hint: None, None
     size: 20, 20

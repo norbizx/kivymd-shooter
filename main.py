@@ -4,7 +4,7 @@ from random import randint
 
 from kivy.clock import Clock
 from kivy.metrics import dp
-from kivy.properties import NumericProperty, StringProperty, ListProperty
+from kivy.properties import NumericProperty, StringProperty, ListProperty, BooleanProperty
 from kivymd.app import MDApp
 from kivymd.uix.screenmanager import MDScreenManager
 from kivymd.uix.screen import MDScreen
@@ -27,7 +27,6 @@ BULLET_SPAWN_OFFSET = dp(5)
 RECORD_FILE = "record.json"
 SETTINGS_FILE = "settings.json"
 
-# СПИСОК СКИНОВ - подставь сюда свои пути к картинкам
 SKINS = [
     {"name": "Классика", "source": "assets/images/rocket.png"},
     {"name": "Скин 2", "source": "assets/images/rocket_2.png"},
@@ -183,6 +182,7 @@ class EnemyShip(Ship):
 class GameScreen(MDScreen):
     score = NumericProperty(0)
     score_text = StringProperty("0")
+    paused = BooleanProperty(False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -199,13 +199,15 @@ class GameScreen(MDScreen):
         Window.bind(on_key_up=self.on_key_up)
 
     KEY_MAP = {
-        276: "left",   # стрелка влево
-        275: "right",  # стрелка вправо
-        32: "shot",    # пробел
-        273: "shot",   # стрелка вверх
+        276: "left",
+        275: "right",
+        32: "shot",
+        273: "shot",
     }
 
     def on_key_down(self, window, key, *args):
+        if self.paused:
+            return
         action = self.KEY_MAP.get(key)
         if action:
             self.pressKey(action)
@@ -218,23 +220,17 @@ class GameScreen(MDScreen):
     def on_pre_enter(self, *args):
         self.score = 0
         self.score_text = "0"
+        self.paused = False
         self.ship.applySkin()
         return super().on_pre_enter(*args)
 
     def on_enter(self, *args):
-        self.updateEvent = Clock.schedule_interval(self.update, 1 / FPS)
-        self.spawnEvent = Clock.schedule_interval(self.spawnEnemy, ENEMY_SPAWN_INTERVAL)
-        self.spawnEnemy(0)
+        self.startGame()
         return super().on_enter(*args)
 
     def on_leave(self, *args):
-        # останавливаем события при выходе с экрана, чтобы не плодить дубликаты
-        if self.updateEvent:
-            self.updateEvent.cancel()
-        if self.spawnEvent:
-            self.spawnEvent.cancel()
+        self.stopEvents()
 
-        # чистим оставшихся врагов и пули
         for enemy in self.enemyShips[:]:
             if enemy.parent:
                 enemy.parent.remove_widget(enemy)
@@ -246,6 +242,33 @@ class GameScreen(MDScreen):
         self.bullets.clear()
 
         return super().on_leave(*args)
+
+    def startGame(self):
+        self.updateEvent = Clock.schedule_interval(self.update, 1 / FPS)
+        self.spawnEvent = Clock.schedule_interval(self.spawnEnemy, ENEMY_SPAWN_INTERVAL)
+        self.spawnEnemy(0)
+
+    def stopEvents(self):
+        if self.updateEvent:
+            self.updateEvent.cancel()
+            self.updateEvent = None
+        if self.spawnEvent:
+            self.spawnEvent.cancel()
+            self.spawnEvent = None
+
+    def show_menu(self):
+        """Вызывается кнопкой паузы"""
+        self.paused = True
+        self.eventkeys.clear()  # чтобы корабль не "залипал" в движении при паузе
+        self.stopEvents()
+
+    def resumeGame(self):
+        self.paused = False
+        self.startGame()
+
+    def exitToMenu(self):
+        self.paused = False
+        self.manager.current = 'main'
 
     def addScore(self, amount=1):
         self.score += amount
@@ -288,6 +311,8 @@ class GameScreen(MDScreen):
                 self.enemyShips.remove(enemy)
 
     def pressKey(self, key):
+        if self.paused:
+            return
         self.eventkeys[key] = True
 
     def releaseKey(self, key):
