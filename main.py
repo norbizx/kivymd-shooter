@@ -9,6 +9,7 @@ from kivymd.app import MDApp
 from kivymd.uix.screenmanager import MDScreenManager
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.button import MDRectangleFlatButton
+from kivymd.uix.dialog import MDDialog
 from kivy import platform
 from kivy.core.window import Window
 from kivy.uix.image import Image
@@ -28,9 +29,9 @@ RECORD_FILE = "record.json"
 SETTINGS_FILE = "settings.json"
 
 SKINS = [
-    {"name": "Классика", "source": "assets/images/rocket.png"},
-    {"name": "Скин 2", "source": "assets/images/rocket_2.png"},
-    {"name": "Скин 3", "source": "assets/images/rocket_3.png"},
+    {"name": "Класика", "source": "assets/images/rocket.png"},
+    {"name": "Скін 2", "source": "assets/images/rocket_2.png"},
+    {"name": "Скін 3", "source": "assets/images/rocket_3.png"},
 ]
 
 DEFAULT_SKIN = SKINS[0]["source"]
@@ -194,6 +195,7 @@ class GameScreen(MDScreen):
         self.ship.game = self
         self.spawnEvent = None
         self.updateEvent = None
+        self.dialog = None
 
         Window.bind(on_key_down=self.on_key_down)
         Window.bind(on_key_up=self.on_key_up)
@@ -230,7 +232,11 @@ class GameScreen(MDScreen):
 
     def on_leave(self, *args):
         self.stopEvents()
+        self.closeDialog()
+        self.clearGameObjects()
+        return super().on_leave(*args)
 
+    def clearGameObjects(self):
         for enemy in self.enemyShips[:]:
             if enemy.parent:
                 enemy.parent.remove_widget(enemy)
@@ -240,8 +246,6 @@ class GameScreen(MDScreen):
             if bullet.parent:
                 bullet.parent.remove_widget(bullet)
         self.bullets.clear()
-
-        return super().on_leave(*args)
 
     def startGame(self):
         self.updateEvent = Clock.schedule_interval(self.update, 1 / FPS)
@@ -257,9 +261,9 @@ class GameScreen(MDScreen):
             self.spawnEvent = None
 
     def show_menu(self):
-        """Вызывается кнопкой паузы"""
+        """Викликається кнопкою паузи"""
         self.paused = True
-        self.eventkeys.clear()  # чтобы корабль не "залипал" в движении при паузе
+        self.eventkeys.clear()  # щоб корабель не "залипав" у русі під час паузи
         self.stopEvents()
 
     def resumeGame(self):
@@ -306,9 +310,68 @@ class GameScreen(MDScreen):
 
         for enemy in self.enemyShips[:]:
             enemy.move()
+
             if enemy.top < 0:
                 self.ids.front.remove_widget(enemy)
                 self.enemyShips.remove(enemy)
+                continue
+
+            # Якщо ворожий корабель (помідор) торкнувся гравця - гравець гине
+            if enemy.collide_widget(self.ship):
+                self.playerDied()
+                return
+
+    def playerDied(self):
+        """Викликається, коли ворожий корабель (помідор) торкнувся гравця"""
+        self.stopEvents()
+        self.eventkeys.clear()
+        self.clearGameObjects()
+
+        record = loadRecord()
+        if self.score > record:
+            saveRecord(self.score)
+
+        self.showGameOverDialog()
+
+    def showGameOverDialog(self):
+        if self.dialog:
+            return
+
+        self.dialog = MDDialog(
+            title="Ти помер!",
+            text=f"Рахунок: {self.score}",
+            auto_dismiss=False,
+            buttons=[
+                MDRectangleFlatButton(
+                    text="ГРАТИ ЗНОВУ",
+                    on_release=lambda inst: self.restartGame(),
+                ),
+                MDRectangleFlatButton(
+                    text="У МЕНЮ",
+                    on_release=lambda inst: self.goToMenu(),
+                ),
+            ],
+        )
+        self.dialog.open()
+
+    def closeDialog(self):
+        if self.dialog:
+            self.dialog.dismiss()
+            self.dialog = None
+
+    def restartGame(self):
+        self.closeDialog()
+
+        self.score = 0
+        self.score_text = "0"
+        self.paused = False
+        self.eventkeys.clear()
+
+        self.startGame()
+
+    def goToMenu(self):
+        self.closeDialog()
+        self.manager.current = 'main'
 
     def pressKey(self, key):
         if self.paused:
