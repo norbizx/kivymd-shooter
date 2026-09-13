@@ -11,16 +11,56 @@
             pos_hint: {'right': 1}
             icon_size: '50dp'
         Image:
-            source: 'assets/images/rocket.png'
+            source: 'assets/images/main.png'
             size_hint_y: 0.7
             size: dp(50), dp(50)
             allow_stretch: True
+        MDLabel:
+            text: root.record_text
+            halign: 'center'
+            font_style: 'H5'
+            size_hint_y: None
+            height: dp(60)
         MDRectangleFlatButton:
             text: "PLAY"
             font_size: '60sp'
             pos_hint: {'center_x': 0.5,'center_y': 0.5}
             on_press:
                 root.manager.current = 'game'
+        MDRectangleFlatButton:
+            text: "СКИНЫ"
+            font_size: '30sp'
+            pos_hint: {'center_x': 0.5}
+            on_press:
+                root.manager.current = 'skins'
+
+
+<SkinsScreen>:
+    MDBoxLayout:
+        orientation: 'vertical'
+        padding: '30dp'
+        spacing: '20dp'
+
+        MDIconButton:
+            icon: "arrow-left"
+            pos_hint: {'left': 1}
+            on_press: root.manager.current = 'main'
+
+        MDLabel:
+            text: "Выбери скин"
+            halign: 'center'
+            font_style: 'H4'
+            size_hint_y: None
+            height: dp(60)
+
+        ScrollView:
+            MDBoxLayout:
+                id: skins_container
+                orientation: 'vertical'
+                spacing: dp(15)
+                padding: dp(20)
+                size_hint_y: None
+                height: self.minimum_height
 
 <Ship>:
     size_hint: None, None
@@ -32,13 +72,13 @@
     #         size: self.size
     #         pos: self.pos
 
-<PlayerShip@Ship>:
+<PlayerShip>:
     source: 'assets/images/rocket.png'
     size: dp(100), dp(243)
 
-
-<EnemyShip@Ship>:
-    source: 'assets/images/ufo.png'  
+<EnemyShip>:
+    source: 'assets/images/ufo.png'
+    size: dp(100), dp(100)
 
 
 <GameScreen>:
@@ -54,8 +94,30 @@
                     id: ship
                     pos: root.center_x, dp(50)     
 
+<GameScreen>:
+    MDFloatLayout:
+        md_bg_color: color_cosmos
+        MDFloatLayout:
+            id: game
+            MDFloatLayout:
+                id: back
+            MDFloatLayout:
+                id: front
+                PlayerShip:
+                    id: ship
+                    pos: root.center_x, dp(50)
+
         MDFloatLayout:
             id: interface
+            MDLabel:
+                text: root.score_text
+                halign: 'center'
+                font_style: 'H4'
+                center_x: self.parent.center_x + dp(40)
+                top: self.parent.top
+                size_hint: None, None
+                size: dp(200), dp(60)
+
             MDBoxLayout:
                 spacing: dp(20)
                 padding: dp(20)
@@ -84,7 +146,6 @@
                     md_bg_color: app.theme_cls.primary_color
                     on_press: root.pressKey('shot')
                     on_release: root.releaseKey('shot')
-
 
 <Shot>:
     size_hint: None, None
