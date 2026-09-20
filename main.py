@@ -1,8 +1,10 @@
 import json
 import os
+import webbrowser
 from random import randint
 
 from kivy.clock import Clock
+from kivy.core.audio import SoundLoader
 from kivy.metrics import dp
 from kivy.properties import NumericProperty, StringProperty, ListProperty, BooleanProperty
 from kivymd.app import MDApp
@@ -10,6 +12,8 @@ from kivymd.uix.screenmanager import MDScreenManager
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.button import MDRectangleFlatButton
 from kivymd.uix.dialog import MDDialog
+from kivymd.uix.card import MDCard
+from kivymd.uix.label import MDLabel
 from kivy import platform
 from kivy.core.window import Window
 from kivy.uix.image import Image
@@ -27,6 +31,20 @@ BULLET_SPAWN_OFFSET = dp(5)
 
 RECORD_FILE = "record.json"
 SETTINGS_FILE = "settings.json"
+
+# Поклади свій трек сюди (mp3 або ogg; ogg надійніше працює на Android)
+MUSIC_FILE = "assets/sounds/music.mp3"
+DEFAULT_MUSIC_VOLUME = 0.4
+
+# Звук пострілу (пробіл / кнопка "вистрел")
+SHOT_SOUND_FILE = "assets/sounds/shot.mp3"
+SHOT_SOUND_VOLUME = 1.0
+
+# Картинка пульки — встав свій файл сюди
+BULLET_IMAGE = "assets/images/bullet.png"
+
+# Посилання, яке відкривається при кліку на лівий банер
+BANNER_URL = "https://logikaschool.com/"
 
 SKINS = [
     {"name": "Класика", "source": "assets/images/rocket.png"},
@@ -53,23 +71,63 @@ def saveRecord(value):
         json.dump({"record": value}, f)
 
 
-def loadSelectedSkin():
+def loadSettings():
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return data.get("skin", DEFAULT_SKIN)
+                if isinstance(data, dict):
+                    return data
         except (json.JSONDecodeError, OSError):
-            return DEFAULT_SKIN
-    return DEFAULT_SKIN
+            return {}
+    return {}
+
+
+def saveSettings(data):
+    try:
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except OSError:
+        pass
+
+
+def loadSelectedSkin():
+    return loadSettings().get("skin", DEFAULT_SKIN)
 
 
 def saveSelectedSkin(source):
-    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump({"skin": source}, f)
+    settings = loadSettings()
+    settings["skin"] = source
+    saveSettings(settings)
 
 
-class Shot(MDWidget):
+def loadMusicEnabled():
+    return bool(loadSettings().get("music", True))
+
+
+def saveMusicEnabled(value):
+    settings = loadSettings()
+    settings["music"] = bool(value)
+    saveSettings(settings)
+
+
+def loadMusicVolume():
+    try:
+        value = float(loadSettings().get("music_volume", DEFAULT_MUSIC_VOLUME))
+    except (TypeError, ValueError):
+        value = DEFAULT_MUSIC_VOLUME
+    return min(1.0, max(0.0, value))
+
+
+def saveMusicVolume(value):
+    settings = loadSettings()
+    settings["music_volume"] = float(value)
+    saveSettings(settings)
+
+
+class Shot(Image):
+    """Пулька гравця/ворога. Картинка задається в .kv (BULLET_IMAGE)."""
+
     def __init__(self, direction, **kwargs):
         super().__init__(**kwargs)
         self.direction = direction
@@ -87,24 +145,68 @@ class MainScreen(MDScreen):
         return super().on_pre_enter(*args)
 
 
+class SkinCard(MDCard):
+    """Картка скіна: картинка + назва. Клік = вибір скіна."""
+
+    def __init__(self, skin, selected=False, onSelect=None, **kwargs):
+        super().__init__(**kwargs)
+        self.skin = skin
+        self.onSelect = onSelect
+
+        self.orientation = "vertical"
+        self.padding = dp(10)
+        self.spacing = dp(5)
+        self.size_hint = (None, None)
+        self.size = (dp(150), dp(190))
+        self.radius = [dp(16)]
+        self.md_bg_color = (0.28, 0.08, 0.18, 1)
+        self.ripple_behavior = True
+
+        self.line_color = (1, 0.6, 0.2, 1) if selected else (0.5, 0.5, 0.5, 0.5)
+        self.line_width = dp(2) if selected else dp(1)
+
+        self.add_widget(Image(
+            source=skin["source"],
+            allow_stretch=True,
+            keep_ratio=True,
+            size_hint_y=0.75,
+        ))
+        self.add_widget(MDLabel(
+            text=(f"{skin['name']} ✔" if selected else skin["name"]),
+            halign="center",
+            font_style="Subtitle1",
+            size_hint_y=0.25,
+        ))
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            if self.onSelect:
+                self.onSelect(self.skin["source"])
+            return True
+        return super().on_touch_down(touch)
+
+
 class SkinsScreen(MDScreen):
     skins = ListProperty(SKINS)
 
     def on_pre_enter(self, *args):
+        self.buildCards()
+        return super().on_pre_enter(*args)
+
+    def buildCards(self):
+        current = loadSelectedSkin()
         container = self.ids.skins_container
         container.clear_widgets()
         for skin in self.skins:
-            btn = MDRectangleFlatButton(
-                text=skin["name"],
-                pos_hint={"center_x": 0.5},
-                size_hint_x=0.8,
-            )
-            btn.bind(on_press=lambda inst, s=skin["source"]: self.selectSkin(s))
-            container.add_widget(btn)
-        return super().on_pre_enter(*args)
+            container.add_widget(SkinCard(
+                skin=skin,
+                selected=(skin["source"] == current),
+                onSelect=self.selectSkin,
+            ))
 
     def selectSkin(self, source):
         saveSelectedSkin(source)
+        self.buildCards()
         self.manager.current = 'main'
 
 
@@ -133,6 +235,10 @@ class Ship(Image):
 
         self.game.bullets.append(shot)
         self.game.ids.front.add_widget(shot)
+
+        app = MDApp.get_running_app()
+        if app:
+            app.playShotSound()
 
     def update(self):
         ...
@@ -263,7 +369,7 @@ class GameScreen(MDScreen):
     def show_menu(self):
         """Викликається кнопкою паузи"""
         self.paused = True
-        self.eventkeys.clear()  # щоб корабель не "залипав" у русі під час паузи
+        self.eventkeys.clear()
         self.stopEvents()
 
     def resumeGame(self):
@@ -316,13 +422,11 @@ class GameScreen(MDScreen):
                 self.enemyShips.remove(enemy)
                 continue
 
-            # Якщо ворожий корабель (помідор) торкнувся гравця - гравець гине
             if enemy.collide_widget(self.ship):
                 self.playerDied()
                 return
 
     def playerDied(self):
-        """Викликається, коли ворожий корабель (помідор) торкнувся гравця"""
         self.stopEvents()
         self.eventkeys.clear()
         self.clearGameObjects()
@@ -392,9 +496,17 @@ class GameScreen(MDScreen):
 
 
 class ShooterApp(MDApp):
+    music_on = BooleanProperty(True)
+    music_volume = NumericProperty(DEFAULT_MUSIC_VOLUME)
+
     def build(self):
         self.theme_cls.theme_style = "Dark"
         self.theme_cls.primary_palette = "Orange"
+
+        self.music = None
+        self.shot_sound = None
+        self.music_on = loadMusicEnabled()
+        self.music_volume = loadMusicVolume()
 
         self.sm = MDScreenManager()
 
@@ -403,6 +515,120 @@ class ShooterApp(MDApp):
         self.sm.add_widget(GameScreen(name='game'))
 
         return self.sm
+
+    def on_start(self):
+        self.initMusic()
+        self.initSounds()
+        return super().on_start()
+
+    # --- МУЗИКА ---
+
+    def initMusic(self):
+        if not os.path.exists(MUSIC_FILE):
+            print(f"[МУЗИКА] Файл не знайдено: {MUSIC_FILE}")
+            return
+
+        self.music = SoundLoader.load(MUSIC_FILE)
+        if not self.music:
+            print(f"[МУЗИКА] Не вдалося завантажити: {MUSIC_FILE}")
+            return
+
+        self.music.loop = True
+        self.music.volume = self.music_volume if self.music_on else 0
+
+        if self.music_on:
+            self.music.play()
+
+    def toggleMusic(self):
+        """Кнопка увімк./вимк. Не чіпає значення повзунка, лише грає/зупиняє."""
+        self.music_on = not self.music_on
+        saveMusicEnabled(self.music_on)
+
+        if not self.music:
+            return
+
+        if self.music_on:
+            self.music.volume = self.music_volume
+            if self.music.state != "play":
+                self.music.play()
+        else:
+            self.music.stop()
+
+    def setMusicVolume(self, value):
+        """Викликається повзунком гучності в реальному часі."""
+        value = min(1.0, max(0.0, float(value)))
+        self.music_volume = value
+        saveMusicVolume(value)
+
+        if not self.music:
+            return
+
+        if not self.music_on:
+            self.music_on = True
+            saveMusicEnabled(True)
+            self.music.volume = value
+            if self.music.state != "play":
+                self.music.play()
+        else:
+            self.music.volume = value
+
+    def on_pause(self):
+        if self.music and self.music.state == "play":
+            self.music.stop()
+        return True
+
+    def on_resume(self):
+        if self.music and self.music_on:
+            self.music.volume = self.music_volume
+            self.music.play()
+
+    def on_stop(self):
+        if self.music:
+            self.music.stop()
+            self.music.unload()
+        return super().on_stop()
+
+    # --- ЗВУК ПОСТРІЛУ ---
+
+    def initSounds(self):
+        if not os.path.exists(SHOT_SOUND_FILE):
+            print(f"[ЗВУК] Файл не знайдено: {SHOT_SOUND_FILE}")
+            self._shot_sound_ok = False
+            return
+        self._shot_sound_ok = True
+        # Список активних звуків пострілу, щоб вони не збирались сміттярем,
+        # поки не дограють
+        self._active_shot_sounds = []
+
+    def playShotSound(self):
+        """
+        Кожен постріл створює СВІЙ окремий Sound і програє його незалежно
+        від попередніх - тому звуки накладаються один на одного, а не
+        обривають попередній (як просив користувач: "щоб клалось зверху").
+        """
+        if not getattr(self, "_shot_sound_ok", False):
+            return
+
+        sound = SoundLoader.load(SHOT_SOUND_FILE)
+        if not sound:
+            return
+
+        sound.volume = SHOT_SOUND_VOLUME
+        self._active_shot_sounds.append(sound)
+
+        def cleanup(*args):
+            if sound in self._active_shot_sounds:
+                self._active_shot_sounds.remove(sound)
+            sound.unload()
+
+        sound.bind(on_stop=cleanup)
+        sound.play()
+
+    # --- БАНЕР ---
+
+    def openBannerLink(self):
+        """Відкриває сайт у браузері при кліку на лівий банер."""
+        webbrowser.open(BANNER_URL)
 
 
 if platform != 'android':

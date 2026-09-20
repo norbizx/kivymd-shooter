@@ -2,37 +2,89 @@
 
 
 <MainScreen>:
-    MDBoxLayout: 
-        orientation: 'vertical'     
-        padding: '50dp' 
-        spacing: '30dp'
-        MDIconButton:
-            icon: "cog"
-            pos_hint: {'right': 1}
-            icon_size: '50dp'
+    MDFloatLayout:
+        MDBoxLayout:
+            orientation: 'vertical'
+            padding: '50dp'
+            spacing: '30dp'
+            padding: dp(80), dp(50), dp(80), dp(50)
+
+            # Верхній рядок: музика + налаштування
+            MDBoxLayout:
+                size_hint_y: None
+                height: dp(60)
+                MDIconButton:
+                    icon: "music" if app.music_on else "music-off"
+                    icon_size: '40dp'
+                    theme_text_color: "Custom"
+                    text_color: (1, 0.6, 0.2, 1) if app.music_on else (0.6, 0.6, 0.6, 1)
+                    on_press: app.toggleMusic()
+                Widget:
+                MDIconButton:
+                    icon: "cog"
+                    icon_size: '50dp'
+
+            # Повзунок гучності музики
+            MDBoxLayout:
+                size_hint_y: None
+                height: dp(40)
+                spacing: dp(10)
+                MDIconButton:
+                    icon: "volume-high"
+                    icon_size: '24dp'
+                    disabled: True
+                MDSlider:
+                    id: music_slider
+                    min: 0
+                    max: 1
+                    value: app.music_volume
+                    hint: False
+                    on_value: app.setMusicVolume(self.value)
+
+            Image:
+                source: 'assets/images/main.png'
+                size_hint_y: 0.7
+                size: dp(50), dp(50)
+                allow_stretch: True
+            MDLabel:
+                text: root.record_text
+                halign: 'center'
+                font_style: 'H5'
+                size_hint_y: None
+                height: dp(60)
+            MDRectangleFlatButton:
+                text: "PLAY"
+                font_size: '60sp'
+                pos_hint: {'center_x': 0.5,'center_y': 0.5}
+                on_press:
+                    root.manager.current = 'game'
+            MDRectangleFlatButton:
+                text: "СКИНЫ"
+                font_size: '30sp'
+                pos_hint: {'center_x': 0.5}
+                on_press:
+                    root.manager.current = 'skins'
+
+        # Бокова смужка-банер справа. Встав свою картинку в assets/images/banner.png
         Image:
-            source: 'assets/images/main.png'
-            size_hint_y: 0.7
-            size: dp(50), dp(50)
+            source: 'assets/images/banner.png'
             allow_stretch: True
-        MDLabel:
-            text: root.record_text
-            halign: 'center'
-            font_style: 'H5'
-            size_hint_y: None
-            height: dp(60)
-        MDRectangleFlatButton:
-            text: "PLAY"
-            font_size: '60sp'
-            pos_hint: {'center_x': 0.5,'center_y': 0.5}
-            on_press:
-                root.manager.current = 'game'
-        MDRectangleFlatButton:
-            text: "СКИНЫ"
-            font_size: '30sp'
-            pos_hint: {'center_x': 0.5}
-            on_press:
-                root.manager.current = 'skins'
+            keep_ratio: False
+            size_hint: None, 1
+            width: dp(70)
+            pos_hint: {'right': 1, 'top': 1}
+
+        # Бокова смужка-банер зліва. Встав свою картинку в assets/images/banner_left.png
+        # Клік по ній відкриває сайт (app.openBannerLink)
+        Image:
+            source: 'assets/images/banner_left.png'
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: None, 1
+            width: dp(70)
+            pos_hint: {'x': 0, 'top': 1}
+            on_touch_down:
+                if self.collide_point(*args[1].pos): app.openBannerLink()
 
 
 <SkinsScreen>:
@@ -54,19 +106,20 @@
             height: dp(60)
 
         ScrollView:
-            MDBoxLayout:
+            MDGridLayout:
                 id: skins_container
-                orientation: 'vertical'
+                cols: 2
                 spacing: dp(15)
                 padding: dp(20)
                 size_hint_y: None
                 height: self.minimum_height
 
+
 <Ship>:
     size_hint: None, None
     # Для відлагодження (щоб бачити хітбокси) розкоментувати
     # canvas.before:
-    #     Color: 
+    #     Color:
     #         rgba: 1, 0, 0, 1
     #     Rectangle:
     #         size: self.size
@@ -80,19 +133,14 @@
     source: 'assets/images/ufo.png'
     size: dp(100), dp(100)
 
+<Shot>:
+    # Встав свою картинку пульки сюди
+    source: 'assets/images/bullet.png'
+    size_hint: None, None
+    size: dp(20), dp(40)
+    allow_stretch: True
+    keep_ratio: True
 
-<GameScreen>:
-    MDFloatLayout:
-        md_bg_color: color_cosmos
-        MDFloatLayout:
-            id: game
-            MDFloatLayout:
-                id: back
-            MDFloatLayout:
-                id: front
-                PlayerShip:  
-                    id: ship
-                    pos: root.center_x, dp(50)     
 
 <GameScreen>:
     MDFloatLayout:
@@ -117,6 +165,27 @@
                 top: self.parent.top
                 size_hint: None, None
                 size: dp(200), dp(60)
+
+            # Бокова смужка-банер справа. Встав свою картинку в assets/images/banner.png
+            Image:
+                source: 'assets/images/banner.png'
+                allow_stretch: True
+                keep_ratio: False
+                size_hint: None, 1
+                width: dp(70)
+                pos_hint: {'right': 1, 'top': 1}
+
+            # Бокова смужка-банер зліва. Встав свою картинку в assets/images/banner_left.png
+            # Клік по ній відкриває сайт (app.openBannerLink)
+            Image:
+                source: 'assets/images/banner_left.png'
+                allow_stretch: True
+                keep_ratio: False
+                size_hint: None, 1
+                width: dp(70)
+                pos_hint: {'x': 0, 'top': 1}
+                on_touch_down:
+                    if self.collide_point(*args[1].pos): app.openBannerLink()
 
             MDBoxLayout:
                 spacing: dp(20)
@@ -148,7 +217,6 @@
                     on_release: root.releaseKey('shot')
 
         # ОВЕРЛЕЙ ПАУЗЫ
-                # ОВЕРЛЕЙ ПАУЗЫ
         MDFloatLayout:
             id: pause_overlay
             size_hint: 1, 1
@@ -165,8 +233,8 @@
             MDBoxLayout:
                 orientation: 'vertical'
                 pos_hint: {'center_x': 0.5, 'center_y': 0.5}
-                size_hint: 0.7, 0.4
-                spacing: dp(20)
+                size_hint: 0.75, 0.55
+                spacing: dp(15)
 
                 MDLabel:
                     text: "ПАУЗА"
@@ -174,15 +242,32 @@
                     font_style: 'H4'
 
                 MDRectangleFlatButton:
-                    text: "Продолжить"
+                    text: "Продовжити"
                     pos_hint: {'center_x': 0.5}
                     on_press: root.resumeGame()
+
+                MDRectangleFlatButton:
+                    text: "Музика: увімк." if app.music_on else "Музика: вимк."
+                    pos_hint: {'center_x': 0.5}
+                    on_press: app.toggleMusic()
+
+                MDBoxLayout:
+                    size_hint_y: None
+                    height: dp(40)
+                    spacing: dp(10)
+                    padding: dp(20), 0
+                    MDIconButton:
+                        icon: "volume-high"
+                        icon_size: '24dp'
+                        disabled: True
+                    MDSlider:
+                        min: 0
+                        max: 1
+                        value: app.music_volume
+                        hint: False
+                        on_value: app.setMusicVolume(self.value)
 
                 MDRectangleFlatButton:
                     text: "В меню"
                     pos_hint: {'center_x': 0.5}
                     on_press: root.exitToMenu()
-<Shot>:
-    size_hint: None, None
-    size: 20, 20
-    md_bg_color: app.theme_cls.primary_color
