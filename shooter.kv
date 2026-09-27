@@ -80,13 +80,13 @@
                 size_hint_y: None
                 height: dp(60)
             MDRectangleFlatButton:
-                text: "PLAY"
+                text: "ГРАТИ"
                 font_size: '60sp'
                 pos_hint: {'center_x': 0.5,'center_y': 0.5}
                 on_press:
                     root.manager.current = 'game'
             MDRectangleFlatButton:
-                text: "СКИНЫ"
+                text: "СКІНИ"
                 font_size: '30sp'
                 pos_hint: {'center_x': 0.5}
                 on_press:
@@ -292,7 +292,6 @@
                         on_value: app.setMusicVolume(self.value)
 
                 MDRectangleFlatButton:
-                    text: "В меню"
+                    text: "У меню"
                     pos_hint: {'center_x': 0.5}
                     on_press: root.exitToMenu()
-a = 1

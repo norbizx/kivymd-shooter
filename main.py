@@ -692,4 +692,3 @@ if platform != 'android':
 
 app = ShooterApp()
 app.run()
-a = 1
