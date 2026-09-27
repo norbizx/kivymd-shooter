@@ -14,6 +14,7 @@ from kivymd.uix.button import MDRectangleFlatButton
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.card import MDCard
 from kivymd.uix.label import MDLabel
+from kivymd.uix.floatlayout import MDFloatLayout
 from kivy import platform
 from kivy.core.window import Window
 from kivy.uix.image import Image
@@ -43,8 +44,12 @@ SHOT_SOUND_VOLUME = 1.0
 # Картинка пульки — встав свій файл сюди
 BULLET_IMAGE = "assets/images/bullet.png"
 
-# Посилання, яке відкривається при кліку на лівий банер
+# Посилання, яке відкривається при кліку на лівий банер / рекламний попап
 BANNER_URL = "https://logikaschool.com/"
+
+# Реклама, що спавниться під час гри кожні 30 секунд (то зверху, то знизу)
+AD_POPUP_IMAGE = "assets/images/banner.png"
+AD_POPUP_INTERVAL = 30  # секунд
 
 SKINS = [
     {"name": "Класика", "source": "assets/images/rocket.png"},
@@ -136,12 +141,28 @@ class Shot(Image):
         self.y += BULLET_SPEED * self.direction
 
 
+class AdPopup(MDFloatLayout):
+    """Рекламний попап з хрестиком закриття.
+
+    Клік по картинці (не по хрестику) відкриває BANNER_URL,
+    клік по хрестику просто прибирає цей конкретний попап.
+    """
+    image_source = StringProperty(AD_POPUP_IMAGE)
+
+    def closeSelf(self):
+        if self.parent:
+            self.parent.remove_widget(self)
+
+
 class MainScreen(MDScreen):
     record_text = StringProperty("Рекорд: 0")
+    left_ad_visible = BooleanProperty(True)
 
     def on_pre_enter(self, *args):
         record = loadRecord()
         self.record_text = f"Рекорд: {record}"
+        # Показуємо лівий рекламний банер знову щоразу, як заходимо в меню
+        self.left_ad_visible = True
         return super().on_pre_enter(*args)
 
 
@@ -291,6 +312,13 @@ class GameScreen(MDScreen):
     score_text = StringProperty("0")
     paused = BooleanProperty(False)
 
+    # Позиції, між якими чергується рекламний попап: спочатку зверху,
+    # потім знизу, потім знову зверху і т.д.
+    AD_CORNERS = [
+        {'right': 1, 'top': 1},
+        {'right': 1, 'y': 0},
+    ]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -301,6 +329,9 @@ class GameScreen(MDScreen):
         self.ship.game = self
         self.spawnEvent = None
         self.updateEvent = None
+        self.adEvent = None
+        self.currentAd = None
+        self.adCornerIndex = 0
         self.dialog = None
 
         Window.bind(on_key_down=self.on_key_down)
@@ -353,9 +384,12 @@ class GameScreen(MDScreen):
                 bullet.parent.remove_widget(bullet)
         self.bullets.clear()
 
+        self.clearAd()
+
     def startGame(self):
         self.updateEvent = Clock.schedule_interval(self.update, 1 / FPS)
         self.spawnEvent = Clock.schedule_interval(self.spawnEnemy, ENEMY_SPAWN_INTERVAL)
+        self.adEvent = Clock.schedule_interval(self.spawnAdPopup, AD_POPUP_INTERVAL)
         self.spawnEnemy(0)
 
     def stopEvents(self):
@@ -365,6 +399,26 @@ class GameScreen(MDScreen):
         if self.spawnEvent:
             self.spawnEvent.cancel()
             self.spawnEvent = None
+        if self.adEvent:
+            self.adEvent.cancel()
+            self.adEvent = None
+
+    def spawnAdPopup(self, dt):
+        """Кожні AD_POPUP_INTERVAL секунд показує рекламу то зверху, то знизу."""
+        self.clearAd()
+
+        corner = self.AD_CORNERS[self.adCornerIndex % len(self.AD_CORNERS)]
+        self.adCornerIndex += 1
+
+        ad = AdPopup(image_source=AD_POPUP_IMAGE)
+        ad.pos_hint = corner
+        self.ids.interface.add_widget(ad)
+        self.currentAd = ad
+
+    def clearAd(self):
+        if self.currentAd and self.currentAd.parent:
+            self.currentAd.parent.remove_widget(self.currentAd)
+        self.currentAd = None
 
     def show_menu(self):
         """Викликається кнопкою паузи"""
@@ -624,10 +678,10 @@ class ShooterApp(MDApp):
         sound.bind(on_stop=cleanup)
         sound.play()
 
-    # --- БАНЕР ---
+    # --- БАНЕР / РЕКЛАМА ---
 
     def openBannerLink(self):
-        """Відкриває сайт у браузері при кліку на лівий банер."""
+        """Відкриває сайт у браузері при кліку на банер/рекламний попап."""
         webbrowser.open(BANNER_URL)
 
 

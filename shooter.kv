@@ -1,6 +1,33 @@
 #:set color_cosmos 0.2, 0, 0.1, 1
 
 
+<AdPopup>:
+    size_hint: None, None
+    size: dp(160), dp(160)
+    MDFloatLayout:
+        size_hint: 1, 1
+
+        Image:
+            source: root.image_source
+            allow_stretch: True
+            keep_ratio: False
+            size_hint: 1, 1
+            on_touch_down:
+                if self.collide_point(*args[1].pos): app.openBannerLink()
+
+        # Крестик закриття (намальований поверх картинки)
+        MDIconButton:
+            icon: "close"
+            icon_size: '18dp'
+            size_hint: None, None
+            size: dp(32), dp(32)
+            pos_hint: {'right': 1, 'top': 1}
+            md_bg_color: 0, 0, 0, 0.55
+            theme_text_color: "Custom"
+            text_color: 1, 1, 1, 1
+            on_release: root.closeSelf()
+
+
 <MainScreen>:
     MDFloatLayout:
         MDBoxLayout:
@@ -74,17 +101,31 @@
             width: dp(70)
             pos_hint: {'right': 1, 'top': 1}
 
-        # Бокова смужка-банер зліва. Встав свою картинку в assets/images/banner_left.png
-        # Клік по ній відкриває сайт (app.openBannerLink)
-        Image:
-            source: 'assets/images/banner_left.png'
-            allow_stretch: True
-            keep_ratio: False
+        # Бокова смужка-банер зліва: ширша + можна закрити хрестиком
+        MDFloatLayout:
             size_hint: None, 1
-            width: dp(70)
+            width: dp(200) if root.left_ad_visible else 0
+            opacity: 1 if root.left_ad_visible else 0
             pos_hint: {'x': 0, 'top': 1}
-            on_touch_down:
-                if self.collide_point(*args[1].pos): app.openBannerLink()
+
+            Image:
+                source: 'assets/images/banner_left.png'
+                allow_stretch: True
+                keep_ratio: False
+                size_hint: 1, 1
+                on_touch_down:
+                    if self.collide_point(*args[1].pos): app.openBannerLink()
+
+            MDIconButton:
+                icon: "close"
+                icon_size: '16dp'
+                size_hint: None, None
+                size: dp(28), dp(28)
+                pos_hint: {'right': 1, 'top': 1}
+                md_bg_color: 0, 0, 0, 0.55
+                theme_text_color: "Custom"
+                text_color: 1, 1, 1, 1
+                on_release: root.left_ad_visible = False
 
 
 <SkinsScreen>:
@@ -166,26 +207,9 @@
                 size_hint: None, None
                 size: dp(200), dp(60)
 
-            # Бокова смужка-банер справа. Встав свою картинку в assets/images/banner.png
-            Image:
-                source: 'assets/images/banner.png'
-                allow_stretch: True
-                keep_ratio: False
-                size_hint: None, 1
-                width: dp(70)
-                pos_hint: {'right': 1, 'top': 1}
-
-            # Бокова смужка-банер зліва. Встав свою картинку в assets/images/banner_left.png
-            # Клік по ній відкриває сайт (app.openBannerLink)
-            Image:
-                source: 'assets/images/banner_left.png'
-                allow_stretch: True
-                keep_ratio: False
-                size_hint: None, 1
-                width: dp(70)
-                pos_hint: {'x': 0, 'top': 1}
-                on_touch_down:
-                    if self.collide_point(*args[1].pos): app.openBannerLink()
+            # Бокові статичні банери під час гри більше не показуються —
+            # замість них AdPopup спавниться зверху/знизу кожні 30 секунд
+            # (див. GameScreen.spawnAdPopup у main.py)
 
             MDBoxLayout:
                 spacing: dp(20)
